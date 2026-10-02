@@ -1,0 +1,24 @@
+{
+  "name": "soap-estudos",
+  "version": "1.0.0",
+  "private": true,
+  "description": "API SOAP de estudo (domínio User) com Node.js e TypeScript",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --include \"src/**/*.wsdl\" src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "typecheck": "tsc --noEmit",
+    "client": "tsx src/client.ts"
+  },
+  "dependencies": {
+    "@xmldom/xmldom": "^0.9.12",
+    "soap": "^1.13.1",
+    "xpath": "^0.0.34"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}

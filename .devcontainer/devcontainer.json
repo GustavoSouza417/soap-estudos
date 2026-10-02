@@ -1,0 +1,26 @@
+{
+  "name": "soap-estudos",
+
+  // Reaproveita o docker-compose.yml de src/setup/docker: o editor entra no mesmo container onde o servidor roda.
+  "dockerComposeFile": ["../src/setup/docker/docker-compose.yml"],
+  "service": "app",
+  "workspaceFolder": "/app",
+
+  // Não troca o comando do container: o servidor (npm run dev) continua rodando em segundo plano.
+  "overrideCommand": false,
+
+  // Mesmo usuário do Dockerfile (UID 1000), para os arquivos não ficarem com dono root.
+  "remoteUser": "node",
+
+  // Ao fechar o VS Code, o container continua de pé (o servidor segue no ar).
+  "shutdownAction": "none",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "anthropic.claude-code",
+        "redhat.vscode-xml"
+      ]
+    }
+  }
+}

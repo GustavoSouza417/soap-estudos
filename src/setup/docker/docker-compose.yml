@@ -1,0 +1,20 @@
+# Os caminhos relativos deste arquivo são resolvidos a partir desta pasta (src/setup/docker/).
+# Subir (da raiz do projeto):
+#   docker compose -f src/setup/docker/docker-compose.yml --env-file src/setup/env/.env up --build
+# O --env-file alimenta o ${PORT} do "ports"; sem ele vale o padrão 8000.
+services:
+  app:
+    build:
+      # Raiz do projeto (para o COPY . . enxergar package.json e src/)
+      context: ../../..
+      dockerfile: src/setup/docker/Dockerfile
+    # Injeta as variáveis do .env (ex.: PORT) dentro do container
+    env_file: ../env/.env
+    ports:
+      # ":-8000" é o padrão se PORT não existir
+      - "${PORT:-8000}:${PORT:-8000}"
+    volumes:
+      # Código do host montado no container: editou, o servidor reinicia sozinho (npm run dev)
+      - ../../..:/app
+      # Volume anônimo: mantém o node_modules do container, sem precisar dele no host
+      - /app/node_modules
