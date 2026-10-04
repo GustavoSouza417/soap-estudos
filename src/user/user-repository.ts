@@ -3,7 +3,7 @@ import type UserType from './types/user-type.js';
 import XMLService from '../xml/xml-service.js';
 
 export default class UserRepository {
-  public static getUser(id: string): UserType | null {
+  public static getUser(id: number): UserType | null {
     const document: Document = XMLService.read();
     const [user]: Element[] =
       XMLService.selectElements(`//user[@id='${id}']`, document);
@@ -18,9 +18,9 @@ export default class UserRepository {
       id: id,
       name: name,
       email: email
-    };
-  };
-};
+    }
+  }
+}
 
 
 
