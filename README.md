@@ -4,7 +4,7 @@ Projeto de estudo: uma API SOAP escrita do zero (WSDL à mão), com Node.js + Ty
 
 - **Contrato:** WSDL 1.1, SOAP 1.1, estilo document/literal, escrito à mão (contract-first).
 - **Domínio:** usuários (`id`, `name`, `email`).
-- **Estado:** em construção. A camada de dados do `GetUser` está pronta, o servidor sobe, mas o controller ainda devolve um usuário de teste fixo. Veja [Progresso](#progresso).
+- **Estado:** em construção. A operação `GetUser` funciona de ponta a ponta, com erros devolvidos como SOAP Fault; as demais ainda não existem. Veja [Progresso](#progresso).
 
 ## Arquitetura
 
@@ -12,11 +12,13 @@ Cada camada só conhece a de baixo. Só as duas primeiras sabem que SOAP existe.
 
 ```
 server.ts            HTTP + soap.listen (transporte)
-  └─ controller      traduz o envelope SOAP em chamadas e a resposta de volta
-       └─ service    regras e validação
+  └─ endpoint        traduz o envelope SOAP em chamadas e a resposta de volta; valida a entrada
+       └─ service    regras
             └─ repository   XML → objeto
                  └─ xml-service   leitura/gravação do arquivo e XPath
 ```
+
+Erros seguem o caminho inverso: a validação e o service lançam erros de domínio (`errors/`), que não sabem nada de SOAP, e o endpoint os entrega ao `fault-translator`, que os converte em SOAP Fault. Um erro que o tradutor não conhece passa intacto e sai como falha do servidor.
 
 ## Estrutura
 
@@ -26,12 +28,17 @@ src/
   users-data.xml                 "banco de dados" (<users nextId> com <user id>)
   user/
     user.wsdl                    contrato do serviço de usuários
-    user-controller.ts           objeto de serviços do WSDL: UserService → UserPort → operações
-    user-service.ts              validação do id e regras
+    user-endpoint.ts             objeto de serviços do WSDL: UserService → UserPort → operações
+    fault-translator.ts          traduz erros de domínio em SOAP Fault (tabela erro → status HTTP)
+    user-validate.ts             validação da entrada (id inteiro, de 1 a 999)
+    errors/                      erros de domínio (um arquivo por classe, reexportados pelo index.ts)
+    user-service.ts              regras (usuário não encontrado vira erro)
     user-repository.ts           busca no XML e monta o UserType
+    ports/                       interfaces que o núcleo exige de fora (em construção)
     types/
       user-type.ts               interface UserType
       user-wsdl-types.ts         formato das mensagens (GetUserRequest/Response)
+      user-faults-type.ts        entrada da tabela do tradutor de Faults
   xml/
     xml-service.ts               read/write (gravação atômica) e selectElements (XPath)
   setup/
@@ -144,13 +151,17 @@ Resposta (vem em uma linha só; indentada aqui para leitura):
 </soap:Envelope>
 ```
 
-Essa é a resposta com o controller ligado ao `UserService`. Enquanto isso não é feito, ele devolve sempre o usuário de teste (John Doe) com o `id` recebido.
+Erros voltam como `soap:Fault` com `faultcode` `soap:Client` e a mensagem em `<faultstring>`:
 
-Erros (id inválido, usuário inexistente) voltam como `soap:Fault`, com HTTP 500 e a mensagem em `<soap:Text>`.
+| Situação | HTTP |
+|---|---|
+| `id` inválido (não inteiro ou fora de 1 a 999) | 400 |
+| Usuário inexistente | 404 |
+| Erro inesperado do servidor | 500 |
 
 ### Regras do `id`
 
-Validadas no `UserService`: só dígitos, de 1 a 3 caracteres, valor a partir de 1. Zeros à esquerda são aceitos (`007` é o usuário 7).
+Validadas no `UserValidate`: número inteiro, de 1 a 999. Zeros à esquerda são aceitos (`007` é o usuário 7).
 
 O contrato declara o `id` como `xsd:int`, então a lib `soap` converte o texto em número antes de ele chegar ao código, e lê só o começo numérico: `2abc` chega como `2` e `1.5` como `1`.
 
@@ -159,14 +170,22 @@ O contrato declara o `id` como `xsd:int`, então a lib `soap` converte o texto e
 - [x] Infra (Docker, TypeScript)
 - [x] WSDL com `GetUser`
 - [x] Banco XML, `XMLService`, `UserRepository.getUser`, `UserService.getUser`
-- [ ] Servidor SOAP respondendo `GetUser`. Falta:
-  - `user-controller.ts`: chamar o `UserService` no lugar do usuário de teste.
+- [x] Servidor SOAP respondendo `GetUser`, com erros tipados traduzidos em Fault
+- [ ] Interface do repositório (porta) e injeção de dependência
 - [ ] Demais operações: `CreateUser`, `ListUsers`, `UpdateUser`, `DeleteUser`, com SOAP Faults
 - [ ] Cliente Node (`src/client.ts`)
 - [ ] Página HTML consumindo o serviço
 
+Depois (planejado), em ordem:
+
+- [ ] Separar a regra de negócio em portas e adaptadores (arquitetura hexagonal)
+- [ ] Persistência em memória, XML, JSON e arquivo de texto
+- [ ] Transportes REST, GraphQL e gRPC, além do SOAP
+- [ ] Trocar persistência e transportes em tempo real, sem reiniciar a aplicação
+
 ## Limitações conhecidas
 
+- Uma requisição `<GetUserRequest/>` sem o `<id>` devolve um Fault com mensagem de erro interno (`TypeError`), não uma mensagem de validação.
 - `npm run build` / `npm start` ainda não funcionam: o `tsc` não copia `user.wsdl` nem `users-data.xml` para `dist/`.
 - O `XMLService` está preso ao `users-data.xml`; para um segundo domínio ele precisará receber o arquivo.
 - Não há `package-lock.json`: as versões das dependências podem variar entre instalações.
