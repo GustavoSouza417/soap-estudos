@@ -1,7 +1,7 @@
 import http from 'node:http';
 import { readFileSync } from 'node:fs';
 import * as soap from 'soap';
-import UserWebService from './user/user-controller.js';
+import UserWebService from './user/user-endpoint.js';
 
 const PORT: number = Number(process.env['PORT']) || 8000;
 
